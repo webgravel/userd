@@ -1,0 +1,5 @@
+name: gravel-userd
+requires: gravel-common
+
+start: ./user_daemon.py
+preinstall: make
