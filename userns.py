@@ -60,36 +60,6 @@ class UserNS(object):
 
         print 'run finished'
 
-    def attach(self, cmd):
-        pid = self.fork_attach()
-        if pid == 0:
-            os.execvp(cmd[0], cmd)
-        else:
-            os.wait()
-
-    def fork_attach(self):
-        self._wait_for_init()
-        pid = os.fork()
-        if pid == 0:
-            self._do_attach()
-            if os.fork() == 0:
-                return 0
-            else:
-                os.wait()
-                os._exit(0)
-        return pid
-
-    def _do_attach(self):
-        path = '/proc/%d/ns/' % self.init_pid
-        for ns in ['ipc', 'net', 'pid', 'uts', 'mnt']:
-            fd = os.open(path + ns, os.O_RDONLY)
-            if _libc.setns(fd, 0) < 0:
-                raise OSError('attach to %s ns failed' % ns)
-            os.close(fd)
-        self._setup_env()
-        os.chroot(self.dir)
-        os.chdir('/')
-
     def _wait_for_init(self):
         while self.init_pid is None:
             time.sleep(0.1)
@@ -127,7 +97,10 @@ class UserNS(object):
         self._cleanup()
 
     def _cleanup(self):
-        os.rmdir(self.dir)
+        try:
+            os.rmdir(self.dir)
+        except OSError:
+            pass
 
     def _setup_dir(self):
         self.dir = tempfile.mkdtemp()
@@ -225,7 +198,5 @@ def get_ip(i):
 if __name__ == '__main__':
     ns = UserNS(int(os.environ.get('NSUID', 1007)))
     ns.start()
-    try:
-        ns.attach(['bash'])
-    finally:
-        ns.stop()
+    time.sleep(10)
+    ns.stop()
