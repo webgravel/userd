@@ -4,6 +4,8 @@ import os
 import time
 import sys
 import errno
+import passfd
+import subprocess
 
 def exit(*a):
     try:
@@ -23,9 +25,24 @@ def reap_child(*a):
 
 signal.signal(signal.SIGCHLD, reap_child)
 
-try:
-    while sys.stdin.read(1):
-        pass
-    #time.sleep(100000)
-finally:
-    exit()
+sockfd = int(os.environ['SOCKFD'])
+del os.environ['SOCKFD']
+
+def recvfd(fd):
+    while True:
+        try:
+            return passfd.recvfd(fd)
+        except OSError as err:
+            if err.errno == errno.EINTR:
+                continue
+
+while True:
+    fd0, msg = recvfd(sockfd)
+    fd1, _ = recvfd(sockfd)
+    fd2, _ = recvfd(sockfd)
+
+    subprocess.Popen(msg.split('\0'),
+                     stdin=fd0,
+                     stdout=fd1,
+                     stderr=fd2,
+                     close_fds=1)

@@ -4,6 +4,8 @@ import tempfile
 import time
 import struct
 import threading
+import socket
+import passfd
 from subprocess import check_call, call
 
 binds = ['/usr', '/bin', '/sbin',
@@ -47,7 +49,6 @@ class UserNS(object):
         self._setup_dir()
         self.child_pid = os.fork()
         if self.child_pid == 0:
-            os.dup2(self._initin, 0)
             errwrap('unshare_net')
             self._setup_net_guest()
             self._stage1()
@@ -60,6 +61,12 @@ class UserNS(object):
 
         print 'run finished'
 
+    def attach(self, cmd, stdin=0, stdout=1, stderr=2):
+        self._wait_for_init()
+        passfd.sendfd(self._initout, stdin, '\0'.join(cmd))
+        passfd.sendfd(self._initout, stdout, 'nic')
+        passfd.sendfd(self._initout, stderr, 'nic')
+
     def _wait_for_init(self):
         while self.init_pid is None:
             time.sleep(0.1)
@@ -68,7 +75,7 @@ class UserNS(object):
         self._pidin, self._pidout = os.pipe()
 
     def _setup_init_pipe(self):
-        self._initin, self._initout = os.pipe()
+        self._initin, self._initout = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
 
     def _read_pid(self):
         data = os.read(self._pidin, 8)
@@ -147,7 +154,8 @@ class UserNS(object):
                 del os.environ[k]
 
         os.environ.update(dict(
-            PATH='/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin'
+            PATH='/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin',
+            SOCKFD=str(self._initin.fileno())
         ))
 
     def _setup_net_host(self):
@@ -198,5 +206,7 @@ def get_ip(i):
 if __name__ == '__main__':
     ns = UserNS(int(os.environ.get('NSUID', 1007)))
     ns.start()
-    time.sleep(10)
+    ns.attach(['echo', 'hello'])
+    ns.attach(['echo', 'hello world'])
+    time.sleep(2)
     ns.stop()

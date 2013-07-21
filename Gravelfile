@@ -1,5 +1,6 @@
 name: gravel-userd
 requires: gravel-common
+requires-apt: python-passfd
 
 start: ./user_daemon.py
 preinstall: make
