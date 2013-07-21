@@ -6,6 +6,7 @@ import struct
 import threading
 import socket
 import passfd
+import subprocess
 from subprocess import check_call, call
 
 binds = ['/usr', '/bin', '/sbin',
@@ -49,6 +50,7 @@ class UserNS(object):
         self._setup_dir()
         self.child_pid = os.fork()
         if self.child_pid == 0:
+            self._close_fds([0, 1, 2, self._initin.fileno(), self._pidout])
             errwrap('unshare_net')
             self._setup_net_guest()
             self._stage1()
@@ -182,6 +184,16 @@ class UserNS(object):
         check_call('ip ro add default via %s' % self.gwip, shell=True)
         check_call('iptables -I INPUT -d 10.0.0.0/8 -j REJECT', shell=True)
         check_call('iptables -I INPUT -d %s/30 -j ACCEPT' % self.netip, shell=True)
+
+    def _close_fds(self, without):
+        up = max(without) + 1
+        os.closerange(up, subprocess.MAXFD)
+        for i in xrange(0, up):
+            if i not in without:
+                try:
+                    os.close(i)
+                except OSError:
+                    pass
 
 def dev_exists(name):
     return call('ip link show %s >/dev/null 2>&1' % name, shell=True) == 0

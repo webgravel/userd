@@ -37,7 +37,10 @@ def recvfd(fd):
                 continue
 
 while True:
-    fd0, msg = recvfd(sockfd)
+    try:
+        fd0, msg = recvfd(sockfd)
+    except RuntimeError: # probably EOF
+        break
     fd1, _ = recvfd(sockfd)
     fd2, _ = recvfd(sockfd)
 
@@ -46,3 +49,5 @@ while True:
                      stdout=fd1,
                      stderr=fd2,
                      close_fds=1)
+
+exit()
