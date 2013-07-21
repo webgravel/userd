@@ -32,6 +32,15 @@ class UserNS(object):
     def start(self):
         threading.Thread(target=self.run).start()
 
+    def stop(self):
+        if self.init_pid:
+            try:
+                os.kill(self.init_pid, 15)
+                time.sleep(0.5)
+                os.kill(self.init_pid, 9)
+            except OSError:
+                pass
+
     def run(self):
         self._setup_pid_pipe()
         self._setup_init_pipe()
@@ -52,8 +61,11 @@ class UserNS(object):
         print 'run finished'
 
     def attach(self, cmd):
-        if self.fork_attach() == 0:
+        pid = self.fork_attach()
+        if pid == 0:
             os.execvp(cmd[0], cmd)
+        else:
+            os.wait()
 
     def fork_attach(self):
         self._wait_for_init()
@@ -71,10 +83,12 @@ class UserNS(object):
         path = '/proc/%d/ns/' % self.init_pid
         for ns in ['ipc', 'net', 'pid', 'uts', 'mnt']:
             fd = os.open(path + ns, os.O_RDONLY)
-            _libc.setns(fd, 0)
+            if _libc.setns(fd, 0) < 0:
+                raise OSError('attach to %s ns failed' % ns)
             os.close(fd)
         self._setup_env()
         os.chroot(self.dir)
+        os.chdir('/')
 
     def _wait_for_init(self):
         while self.init_pid is None:
@@ -95,16 +109,17 @@ class UserNS(object):
         os.close(self._pidout)
 
     def _stage1(self):
+        self._setup_fs()
         if os.fork() == 0:
             errwrap('unshare_ipc')
             errwrap('unshare_uts')
             errwrap('unshare_mount')
             errwrap('unshare_pid')
             self.child_pid = os.fork()
-            self._write_pid(self.child_pid)
             if self.child_pid == 0:
                 self._stage2()
             else:
+                self._write_pid(os.getpid())
                 os.wait()
             os._exit(0)
         else:
@@ -119,7 +134,6 @@ class UserNS(object):
         print 'directory', self.dir
 
     def _stage2(self):
-        self._setup_fs()
         self._setup_env()
         os.chroot(self.dir)
         os.chdir('/')
@@ -211,4 +225,7 @@ def get_ip(i):
 if __name__ == '__main__':
     ns = UserNS(int(os.environ.get('NSUID', 1007)))
     ns.start()
-    ns.attach(['bash'])
+    try:
+        ns.attach(['bash'])
+    finally:
+        ns.stop()
