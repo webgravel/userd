@@ -15,6 +15,8 @@ binds = ['/usr', '/bin', '/sbin',
 _unshare = ctypes.CDLL('./unshare.so')
 _libc = ctypes.CDLL('libc.so.6')
 
+SLEEP_TIME = 0.03
+
 def errwrap(name, *args):
     func = getattr(_unshare, name)
     result = func(*args)
@@ -32,25 +34,53 @@ class UserNS(object):
         self.selfip = get_ip(uid * 4 + 2)
         print 'gw:', self.gwip, 'self:', self.selfip
 
+        self.running = False
+        # acquired when
+        self.lock = threading.Lock()
+
     def start(self):
-        threading.Thread(target=self.run).start()
+        with self.lock:
+            if self.running:
+                raise error('already running')
+            self.running = True
+
+        threading.Thread(target=self._run).start()
 
     def stop(self):
-        if self.init_pid:
-            try:
-                os.kill(self.init_pid, 15)
-                time.sleep(0.5)
-                os.kill(self.init_pid, 9)
-            except OSError:
-                pass
+        with self.lock:
+            if self.running:
+                self._wait_for_init()
+                self.running = False
 
-    def run(self):
+                try:
+                    os.kill(self.init_pid, 15)
+                    TIMEOUT = 0.3
+                    time.sleep(TIMEOUT)
+                    if self.init_pid:
+                        print 'didn\'t exit within %.2f sec - killing 9' % TIMEOUT
+                        os.kill(self.init_pid, 9)
+                        time.sleep(0.1)
+                except OSError:
+                    pass
+
+                self.init_pid = None
+
+    def _run(self):
+        try:
+            self._stage0()
+        finally:
+            self.init_pid = None
+            self.running = False
+            print 'run finished'
+
+    def _stage0(self):
         self._setup_pid_pipe()
         self._setup_init_pipe()
         self._setup_dir()
         self.child_pid = os.fork()
         if self.child_pid == 0:
             self._close_fds([0, 1, 2, self._initin.fileno(), self._pidout])
+            os.setsid()
             errwrap('unshare_net')
             self._setup_net_guest()
             self._stage1()
@@ -61,17 +91,21 @@ class UserNS(object):
             print 'init pid:', self.init_pid
             os.wait()
 
-        print 'run finished'
+    def attach(self, cmd, **kwargs):
+        wait_r, wait_w = os.pipe()
+        self.attach_async(cmd, wait_w, **kwargs)
+        os.read(wait_r, 1)
 
-    def attach(self, cmd, stdin=0, stdout=1, stderr=2):
+    def attach_async(self, cmd, wait_pipe, stdin=0, stdout=1, stderr=2):
         self._wait_for_init()
         passfd.sendfd(self._initout, stdin, '\0'.join(cmd))
         passfd.sendfd(self._initout, stdout, 'nic')
         passfd.sendfd(self._initout, stderr, 'nic')
+        passfd.sendfd(self._initout, wait_pipe, 'nic')
 
     def _wait_for_init(self):
         while self.init_pid is None:
-            time.sleep(0.1)
+            time.sleep(SLEEP_TIME)
 
     def _setup_pid_pipe(self):
         self._pidin, self._pidout = os.pipe()
@@ -139,6 +173,8 @@ class UserNS(object):
         for dev in ['null', 'zero', 'tty']:
             check_call(['cp', '-a', '/dev/' + dev, self.dir + '/dev/' + dev])
 
+        mount('-t', 'devpts', 'devptsfs', target=self.dir + '/dev/pts')
+
         self._setup_etc()
 
         errwrap('unshare_mount')
@@ -169,14 +205,14 @@ class UserNS(object):
         while dev_exists('veth%d_c' % self.uid):
             check_call('ip link set veth%d_c netns %d' % (self.uid, self.child_pid),
                        shell=True)
-            time.sleep(0.1)
+            time.sleep(SLEEP_TIME)
 
         check_call('ifconfig veth%d %s/30 up' % (self.uid, self.gwip), shell=True)
 
     def _setup_net_guest(self):
         devname = 'veth%d_c' % self.uid
         while not dev_exists(devname):
-            time.sleep(0.1)
+            time.sleep(SLEEP_TIME)
 
         check_call('ip link set dev %s name host' % devname, shell=True)
         check_call('ifconfig lo 127.0.0.1/8 up', shell=True)
@@ -214,6 +250,9 @@ def get_ip(i):
     a = i % 256
     a = 128 + (a % 128)
     return '10.%d.%d.%d' % (a, b, c)
+
+class error(Exception):
+    pass
 
 if __name__ == '__main__':
     ns = UserNS(int(os.environ.get('NSUID', 1007)))

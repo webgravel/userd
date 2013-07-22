@@ -6,6 +6,7 @@ import sys
 import errno
 import passfd
 import subprocess
+import traceback
 
 def exit(*a):
     try:
@@ -18,7 +19,13 @@ signal.signal(signal.SIGTERM, exit)
 
 def reap_child(*a):
     try:
-        while os.waitpid(-1, os.WNOHANG | os.WUNTRACED | os.WCONTINUED): pass
+        while True:
+            pid, exit = os.waitpid(-1, os.WNOHANG | os.WUNTRACED | os.WCONTINUED)
+            if pid in managed_children:
+                print 'managed child died (pid: %d)' % pid
+                pipe = managed_children[pid]
+                os.write(pipe, 'x')
+                del managed_children[pid]
     except OSError as err:
         if err.errno != errno.ECHILD:
             print err
@@ -27,6 +34,8 @@ signal.signal(signal.SIGCHLD, reap_child)
 
 sockfd = int(os.environ['SOCKFD'])
 del os.environ['SOCKFD']
+
+managed_children = {}
 
 def recvfd(fd):
     while True:
@@ -43,11 +52,16 @@ while True:
         break
     fd1, _ = recvfd(sockfd)
     fd2, _ = recvfd(sockfd)
+    wait_fd, _ = recvfd(sockfd)
 
-    subprocess.Popen(msg.split('\0'),
-                     stdin=fd0,
-                     stdout=fd1,
-                     stderr=fd2,
-                     close_fds=1)
+    try:
+        popen = subprocess.Popen(msg.split('\0'),
+                                 stdin=fd0,
+                                 stdout=fd1,
+                                 stderr=fd2,
+                                 close_fds=1)
+        managed_children[popen.pid] = wait_fd
+    except:
+        traceback.print_exc()
 
 exit()
