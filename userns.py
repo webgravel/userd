@@ -122,7 +122,6 @@ class UserNS(object):
         os.close(self._pidout)
 
     def _stage1(self):
-        self._setup_fs()
         if os.fork() == 0:
             errwrap('unshare_ipc')
             errwrap('unshare_uts')
@@ -150,6 +149,7 @@ class UserNS(object):
         print 'directory', self.dir
 
     def _stage2(self):
+        self._setup_fs()
         self._setup_env()
         os.chroot(self.dir)
         os.chdir('/')

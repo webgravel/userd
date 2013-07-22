@@ -45,6 +45,8 @@ def recvfd(fd):
             if err.errno == errno.EINTR:
                 continue
 
+print 'init.py: PID', os.getpid()
+
 while True:
     try:
         fd0, msg = recvfd(sockfd)
