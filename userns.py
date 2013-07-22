@@ -25,6 +25,8 @@ def errwrap(name, *args):
 
 class UserNS(object):
     def __init__(self, uid, nick=None):
+        if not (uid > 1000):
+            raise ValueError('uid must be > 1000')
         self.uid = uid
         self.nick = nick or 'u%d' % uid
         assert isinstance(self.uid, int)
