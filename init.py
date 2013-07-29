@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 import signal
 import os
-import time
-import sys
 import errno
 import passfd
 import subprocess

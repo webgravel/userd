@@ -6,7 +6,6 @@ import threading
 sys.path.append('/gravel/pkg/gravel-common')
 
 import gravelrpc
-import users
 import os
 from userns import UserNS
 
