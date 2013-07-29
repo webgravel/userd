@@ -20,8 +20,9 @@ SLEEP_TIME = 0.03
 def errwrap(name, *args):
     func = getattr(_unshare, name)
     result = func(*args)
-    if result != 0:
-        raise OSError('call %s%r failed' % (name, args))
+    if result < 0:
+        raise OSError(ctypes.get_errno(), 'call %s%r failed with %d' % (name, args, result))
+    return result
 
 class UserNS(object):
     def __init__(self, uid, nick=None):
@@ -128,8 +129,7 @@ class UserNS(object):
             errwrap('unshare_ipc')
             errwrap('unshare_uts')
             errwrap('unshare_mount')
-            errwrap('unshare_pid')
-            self.child_pid = os.fork()
+            self.child_pid = errwrap('fork_unshare_pid')
             if self.child_pid == 0:
                 self._stage2()
             else:
