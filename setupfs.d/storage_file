@@ -1,0 +1,5 @@
+#!/bin/bash
+uid=$1
+dir=$2
+mkdir -p $dir/home/u$uid || exit 1
+mount --bind /gravel/storage/u$uid $dir/home/u$uid || exit 1

@@ -7,7 +7,8 @@ sys.path.append('/gravel/pkg/gravel-common')
 
 import gravelrpc
 import os
-from userns import UserNS
+import cmd_util
+import userns
 
 def signal_exit(*things):
     if worker.exiting:
@@ -47,7 +48,7 @@ class Worker(object):
     def start_user(self, uid):
         with self.lock:
             if uid not in self.running:
-                self.running[uid] = UserNS(uid)
+                self.running[uid] = MyUserNS(uid)
                 self.running[uid].start()
 
     def exit(self):
@@ -63,6 +64,10 @@ class Worker(object):
 
     def attach(self, uid, cmd, fd0, fd1, fd2):
         self.running[uid].attach(cmd, stdin=fd0, stdout=fd1, stderr=fd2)
+
+class MyUserNS(userns.UserNS):
+    def _setup_more_fs(self):
+        cmd_util.run_hooks('/gravel/pkg/gravel-userd/setupfs.d', [str(self.uid), self.dir])
 
 if __name__ == '__main__':
     worker = Worker()

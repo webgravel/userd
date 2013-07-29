@@ -154,6 +154,7 @@ class UserNS(object):
 
     def _stage2(self):
         self._setup_fs()
+        errwrap('unshare_mount')
         self._setup_env()
         os.chroot(self.dir)
         os.chdir('/')
@@ -181,8 +182,10 @@ class UserNS(object):
         mount('-t', 'devpts', 'devptsfs', target=self.dir + '/dev/pts')
 
         self._setup_etc()
+        self._setup_more_fs()
 
-        errwrap('unshare_mount')
+    def _setup_more_fs(self):
+        pass
 
     def _setup_etc(self):
         os.mkdir(self.dir + '/etc')
