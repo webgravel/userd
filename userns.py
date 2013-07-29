@@ -97,7 +97,9 @@ class UserNS(object):
     def attach(self, cmd, **kwargs):
         wait_r, wait_w = os.pipe()
         self.attach_async(cmd, wait_w, **kwargs)
-        os.read(wait_r, 1)
+        byte = os.read(wait_r, 1)
+        if byte == 'E':
+            raise AttachError(cmd)
 
     def attach_async(self, cmd, wait_pipe, stdin=0, stdout=1, stderr=2):
         self._wait_for_init()
@@ -189,6 +191,10 @@ class UserNS(object):
             f.write('root:x:0:0:root:/root:/bin/bash\n')
             f.write('{0}:x:{1}:0:user:/:/bin/bash\n'.format(self.nick, self.uid))
 
+        with open(self.dir + '/etc/resolv.conf', 'w') as f:
+            f.write('nameserver 8.8.8.8\n')
+            f.write('nameserver 8.8.4.4\n')
+
     def _setup_env(self):
         for k in os.environ.keys():
             if k not in ['TERM']:
@@ -255,6 +261,9 @@ def get_ip(i):
     return '10.%d.%d.%d' % (a, b, c)
 
 class error(Exception):
+    pass
+
+class AttachError(error):
     pass
 
 if __name__ == '__main__':

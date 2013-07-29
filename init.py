@@ -22,7 +22,7 @@ def reap_child(*a):
             if pid in managed_children:
                 print 'managed child died (pid: %d)' % pid
                 pipe = managed_children[pid]
-                os.write(pipe, 'x')
+                os.write(pipe, 'Y')
                 del managed_children[pid]
     except OSError as err:
         if err.errno != errno.ECHILD:
@@ -63,5 +63,6 @@ while True:
         managed_children[popen.pid] = wait_fd
     except:
         traceback.print_exc()
+        os.write(wait_fd, 'E')
 
 exit()
