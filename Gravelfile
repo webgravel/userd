@@ -4,3 +4,6 @@ requires-apt: python-passfd build-essential
 
 start: ./user_daemon.py
 preinstall: make
+symlinks:
+- [mastercommand.py, /gravel/pkg/gravel-node/command.d/user]
+- [localcommand.py, /usr/local/bin/graveluser]
