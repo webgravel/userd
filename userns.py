@@ -167,7 +167,8 @@ class UserNS(object):
         mount('--bind', os.getcwd(), target=target)
 
         for bind in binds:
-            mount('--bind', bind, target=self.dir + '/' + bind)
+            if os.path.exists(bind):
+                mount('--bind', bind, target=self.dir + '/' + bind)
 
         mount('-t', 'proc', 'procfs', target=self.dir + '/proc')
 
