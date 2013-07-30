@@ -45,6 +45,10 @@ def recvfd(fd):
 
 print 'init.py: PID', os.getpid()
 
+if os.path.exists("/etc/init.sh"):
+    subprocess.Popen(["bash", "/etc/init.sh"],
+                     close_fds=1)
+
 while True:
     try:
         fd0, msg = recvfd(sockfd)

@@ -67,6 +67,10 @@ class Worker(object):
 
 class MyUserNS(userns.UserNS):
     def _setup_more_fs(self):
+        init_file = self.dir + '/etc/init.sh'
+        open(init_file, 'w').close()
+        os.chmod(init_file, 0o755)
+
         cmd_util.run_hooks('/gravel/pkg/gravel-userd/setupfs.d', [str(self.uid), self.dir])
 
 if __name__ == '__main__':

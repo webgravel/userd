@@ -158,12 +158,14 @@ class UserNS(object):
         self._setup_env()
         os.chroot(self.dir)
         os.chdir('/')
+        os.setgid(100)
         os.setuid(self.uid)
         #os.execv('/bin/bash', ['/bin/bash'])
         os.execv('/usr/bin/python', ['/usr/bin/python', '/gravel/pkg/gravel-userd/init.py'])
 
     def _setup_fs(self):
         mount('-t', 'tmpfs', 'none', target=self.dir)
+        os.chmod(self.dir, 0o755)
 
         target = self.dir + '/gravel/pkg/gravel-userd'
         os.makedirs(target)
@@ -192,7 +194,7 @@ class UserNS(object):
 
         with open(self.dir + '/etc/passwd', 'w') as f:
             f.write('root:x:0:0:root:/root:/bin/bash\n')
-            f.write('{0}:x:{1}:0:user:/:/bin/bash\n'.format(self.nick, self.uid))
+            f.write('{0}:x:{1}:0:user:/home/{0}:/bin/bash\n'.format(self.nick, self.uid))
 
         with open(self.dir + '/etc/resolv.conf', 'w') as f:
             f.write('nameserver 8.8.8.8\n')
@@ -205,6 +207,7 @@ class UserNS(object):
 
         os.environ.update(dict(
             PATH='/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin',
+            HOME='/home/' + self.nick,
             SOCKFD=str(self._initin.fileno())
         ))
 
