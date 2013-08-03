@@ -60,7 +60,8 @@ class UserNS(object):
                     TIMEOUT = 0.3
                     time.sleep(TIMEOUT)
                     if self.init_pid:
-                        print 'didn\'t exit within %.2f sec - killing 9' % TIMEOUT
+                        print 'didn\'t exit within %.2f sec - killing 9 (initpid=%d)' % (
+                            TIMEOUT, self.init_pid)
                         os.kill(self.init_pid, 9)
                         time.sleep(0.1)
                 except OSError:
@@ -199,6 +200,9 @@ class UserNS(object):
         with open(self.dir + '/etc/resolv.conf', 'w') as f:
             f.write('nameserver 8.8.8.8\n')
             f.write('nameserver 8.8.4.4\n')
+
+        with open(self.dir + '/etc/hosts', 'w') as f:
+            f.write('127.0.0.1\tlocalhost\n')
 
     def _setup_env(self):
         for k in os.environ.keys():

@@ -5,5 +5,6 @@ mkdir -p $dir/home/u$uid || exit 1
 mount --bind /gravel/storage/u$uid $dir/home/u$uid || exit 1
 
 if [ -e $dir/home/u$uid/init.sh ]; then
-    echo "/home/u$uid/init.sh &" >> /etc/init.sh
+    echo "cd /home/u$uid
+/home/u$uid/init.sh &" >> $dir/etc/init.sh
 fi
