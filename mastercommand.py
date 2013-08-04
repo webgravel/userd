@@ -5,6 +5,8 @@ sys.path.append('/gravel/pkg/gravel-common')
 
 import cmd_util
 import users
+import sys
+import gravelrpc
 import argparse
 
 def action_take():
@@ -13,7 +15,8 @@ def action_take():
     args = parser.parse_args()
 
     user = users.User(args.uid)
-    user.take()
+    custom_data = gravelrpc.bson.load(sys.stdin)
+    user.take(custom_data)
 
 def action_return():
     pass

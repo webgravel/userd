@@ -12,6 +12,8 @@ from subprocess import check_call, call
 binds = ['/usr', '/bin', '/sbin',
          '/lib', '/lib32', '/libx32', '/lib64']
 
+_unshare = _libc = None
+
 _unshare = ctypes.CDLL('./unshare.so')
 _libc = ctypes.CDLL('libc.so.6')
 
@@ -26,6 +28,7 @@ def errwrap(name, *args):
 
 class UserNS(object):
     def __init__(self, uid, nick=None):
+        _init()
         if not (uid > 1000):
             raise ValueError('uid must be > 1000')
         self.uid = uid
