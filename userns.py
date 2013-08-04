@@ -1,4 +1,3 @@
-import ctypes
 import os
 import tempfile
 import time
@@ -14,8 +13,11 @@ binds = ['/usr', '/bin', '/sbin',
 
 _unshare = _libc = None
 
-_unshare = ctypes.CDLL('./unshare.so')
-_libc = ctypes.CDLL('libc.so.6')
+def _init():
+    global _unshare, _libc, ctypes
+    import ctypes
+    _unshare = ctypes.CDLL('./unshare.so')
+    _libc = ctypes.CDLL('libc.so.6')
 
 SLEEP_TIME = 0.03
 
