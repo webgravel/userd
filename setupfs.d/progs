@@ -1,0 +1,9 @@
+#!/bin/bash
+uid=$1
+dir=$2
+
+names="etc/alternatives etc/emacs etc/emacs23"
+for name in $names; do
+    mkdir $dir/$name
+    mount --bind /$name $dir/$name
+done

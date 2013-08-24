@@ -188,6 +188,8 @@ class UserNS(object):
             check_call(['cp', '-a', '/dev/' + dev, self.dir + '/dev/' + dev])
 
         mount('-t', 'devpts', 'devptsfs', target=self.dir + '/dev/pts')
+        check_call(['cp', '-a', '/dev/pts/ptmx', self.dir + '/dev/ptmx'])
+        check_call(['chmod', '666', '/dev/pts/ptmx', self.dir + '/dev/ptmx'])
 
         self._setup_etc()
         self._setup_more_fs()
