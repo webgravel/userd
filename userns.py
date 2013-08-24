@@ -184,7 +184,7 @@ class UserNS(object):
         mount('-t', 'proc', 'procfs', target=self.dir + '/proc')
 
         os.mkdir(self.dir + '/dev')
-        for dev in ['null', 'zero', 'tty']:
+        for dev in ['null', 'zero', 'tty', 'urandom']:
             check_call(['cp', '-a', '/dev/' + dev, self.dir + '/dev/' + dev])
 
         mount('-t', 'devpts', 'devptsfs', target=self.dir + '/dev/pts')
