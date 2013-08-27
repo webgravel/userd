@@ -3,7 +3,7 @@ requires: gravel-common
 requires-apt: python-passfd build-essential
 
 start: ./user_daemon.py
-preinstall: make
+preinstall: mkdir -p /gravel/system/nodecache; make
 symlinks:
 - [mastercommand.py, /gravel/pkg/gravel-node/command.d/user]
 - [localcommand.py, /usr/local/bin/graveluser]

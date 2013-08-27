@@ -4,10 +4,13 @@ import os
 import argparse
 
 sys.path.append('/gravel/pkg/gravel-common')
+sys.path.append('/gravel/pkg/gravel-node')
 
 import cmd_util
 import users
+import gravelnode
 import gravelrpc
+import graveldb
 from gravelrpc import FD
 
 def action_activate():
@@ -35,6 +38,20 @@ def action_attach():
 
     client = gravelrpc.Client('userd')
     client.attach(args.uid, args.cmd, _fds=[FD(0), FD(1), FD(2)])
+
+def action_fetchall():
+    parser = argparse.ArgumentParser()
+    args = parser.parse_args()
+
+    path = '/gravel/system/nodecache'
+
+    for name in os.listdir(path):
+        shelf = graveldb.TDBShelf(path + '/' + name)
+        with shelf:
+            for key in shelf.keys():
+                del shelf[key]
+
+    gravelnode.master_call('pushallusers')
 
 if __name__ == '__main__':
     cmd_util.chdir_to_code()
