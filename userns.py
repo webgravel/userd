@@ -1,3 +1,4 @@
+import sys
 import os
 import tempfile
 import time
@@ -6,12 +7,14 @@ import threading
 import socket
 import passfd
 import subprocess
+import traceback
 from subprocess import check_call, call
 
 binds = ['/usr', '/bin', '/sbin',
          '/lib', '/lib32', '/libx32', '/lib64']
 
 _unshare = _libc = None
+ctypes = None
 
 def _init():
     global _unshare, _libc, ctypes
@@ -27,6 +30,11 @@ def errwrap(name, *args):
     if result < 0:
         raise OSError(ctypes.get_errno(), 'call %s%r failed with %d' % (name, args, result))
     return result
+
+def exit_fork():
+    if sys.exc_info()[0]:
+        traceback.print_exc()
+    os._exit(0)
 
 class UserNS(object):
     def __init__(self, uid, nick=None):
@@ -88,12 +96,14 @@ class UserNS(object):
         self._setup_dir()
         self.child_pid = os.fork()
         if self.child_pid == 0:
-            self._close_fds([0, 1, 2, self._initin.fileno(), self._pidout])
-            os.setsid()
-            errwrap('unshare_net')
-            self._setup_net_guest()
-            self._stage1()
-            os._exit(0)
+            try:
+                self._close_fds([0, 1, 2, self._initin.fileno(), self._pidout])
+                os.setsid()
+                errwrap('unshare_net')
+                self._setup_net_guest()
+                self._stage1()
+            finally:
+                exit_fork()
         else:
             self._setup_net_host()
             self.init_pid = self._read_pid()
@@ -134,16 +144,18 @@ class UserNS(object):
 
     def _stage1(self):
         if os.fork() == 0:
-            errwrap('unshare_ipc')
-            errwrap('unshare_uts')
-            errwrap('unshare_mount')
-            self.child_pid = errwrap('fork_unshare_pid')
-            if self.child_pid == 0:
-                self._stage2()
-            else:
-                self._write_pid(os.getpid())
-                os.wait()
-            os._exit(0)
+            try:
+                errwrap('unshare_ipc')
+                errwrap('unshare_uts')
+                errwrap('unshare_mount')
+                self.child_pid = errwrap('fork_unshare_pid')
+                if self.child_pid == 0:
+                    self._stage2()
+                else:
+                    self._write_pid(os.getpid())
+                    os.wait()
+            finally:
+                exit_fork()
         else:
             os.wait()
         self._cleanup()
