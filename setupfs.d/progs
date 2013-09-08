@@ -4,6 +4,8 @@ dir=$2
 
 names="etc/alternatives etc/emacs etc/emacs23"
 for name in $names; do
-    mkdir $dir/$name
-    mount --bind /$name $dir/$name
+    if [ -d "/$name" ]; then
+        mkdir $dir/$name
+        mount --bind /$name $dir/$name
+    fi
 done
