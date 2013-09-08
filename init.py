@@ -60,7 +60,8 @@ def starter(msg, fd0, fd1, fd2, wait_fd):
                                  stdin=fd0,
                                  stdout=fd1,
                                  stderr=fd2,
-                                 close_fds=1)
+                                 close_fds=1,
+                                 cwd=os.path.expanduser("~"))
         managed_children[popen.pid] = wait_fd
     except:
         traceback.print_exc()
