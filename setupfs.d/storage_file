@@ -4,6 +4,20 @@ dir=$2
 mkdir -p $dir/home/u$uid || exit 1
 mount --bind /gravel/storage/u$uid $dir/home/u$uid || exit 1
 
+home=/home/u$uid
+
+mkdir_user() {
+    # create directory in new ns, owned by user
+    path=$dir$1
+    mkdir -p $path
+    chown $uid:users $path
+}
+
+mkdir_user $home/.tmp
+ln -s $home/.tmp $dir/tmp
+mkdir_user $home/.var
+ln -s $home/.var $dir/var
+
 if [ -e $dir/home/u$uid/init.sh ]; then
     echo "cd /home/u$uid
 /home/u$uid/init.sh &" >> $dir/etc/init.sh

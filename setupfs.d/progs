@@ -2,10 +2,15 @@
 uid=$1
 dir=$2
 
-names="etc/alternatives etc/emacs etc/emacs23"
+names="etc/alternatives etc/emacs etc/emacs23 etc/skel"
 for name in $names; do
     if [ -d "/$name" ]; then
         mkdir $dir/$name
         mount --bind /$name $dir/$name
     fi
+done
+
+names="etc/mime.types"
+for name in $names; do
+    cp /$name $dir/$name
 done
